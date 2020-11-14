@@ -1,0 +1,1538 @@
+<!doctype html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.5, maximum-scale=1">
+   <style>
+  button {
+    margin: 2px;
+    padding: 4px;
+  }
+  video{
+    width: 320;
+    height: 240;
+  }
+  p{
+    display: inline;
+    font-size: 14px;
+  }
+  h6{
+    margin: 4px;
+    font-weight: lighter;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  </style>
+       
+    </head>
+    <body>
+            <!-- <h6>Image Classification using KNN with MobileNet</h6>-->
+                  
+            <h6><span id="loading">Loading base model...</span> | <span id="videoStatus">Loading video...</span></h6> 
+
+            <p>              
+              My guess is: <span id="result1">...    </span><br><span id="result2"> ... </span>
+            </p>
+
+
+            <div id="log" class="alert alert-info" style="height:100px"></div>
+            <div id="logpos" class="alert alert-info"></div>
+            <video id="webcam" width="320" height="240" style="display:none;"></video>
+            <div style=" width:320px;height:240px;margin: 10px auto;">
+                <canvas id="canvas" width="320" height="240" style="border: 3px solid orange"></canvas>
+                              
+            </div>
+            
+            <canvas id="canvas2" width="960" height="720" style="border: 3px solid skyblue;display:none;"></canvas>
+            <canvas id="canvaz" width="227" height="227" style="border: 3px solid orange;display:none;"></canvas>
+           
+
+
+        <!-- <script type="text/javascript" src="js/ecmascript_simd.js"></script> -->
+        <script type="text/javascript" src="js/jsfeat-min.js"></script>
+        <script type="text/javascript" src="js/profiler.js"></script>
+        <!-- <script type="text/javascript" src="js/dat.gui.min.js"></script> -->
+        <script type="text/javascript" src="js/my_jsfeat_optical_flow_lk.js"></script> 
+
+        <script type="text/javascript" src="js/svd.js"></script> 
+        <!-- <script type="text/javascript" src="js/posit1.js"></script>  -->
+        <script type="text/javascript" src="js/cv.js"></script> 
+        <script type="text/javascript" src="js/aruco.js"></script> 
+
+
+
+
+       <script>
+
+var width = 320;
+            var height = 240;
+            var imageData;
+            //var track =false;//, first =false, yes =false;
+            var debugImage, warpImage, homographyImage, pixels, homographyImageR, homographyImageG, homographyImageB;
+            var  aImageData =[];
+
+            var NoM = 2;
+            var count = [];
+            var ULx =[];
+            var ULy=[];
+            var good_matches = [];
+            var frames = 0;
+            var trained = true;
+            var widthm = [], heightm = [];
+
+            var  renderer, orthoScene, orthoCam, perspCam, perspScene,  controls;//scene, camera,
+			      let teapot,  cube;
+            var texture;
+
+            var intrinsic2, intrinsicInverse2;
+            
+            var canvaz, ctz, img ;
+
+
+            var label=[];
+            label[1]=label[0]=false;
+            var NoClass=0;
+            var lbl=0;
+
+            let onlydetect=false;
+            let A=0, B=0;
+            let detect=true;
+            let track=false;
+            let kf=true;
+            let meshes = [teapot, cube];
+
+
+
+
+       </script>
+
+
+
+
+
+      <script>
+
+var demo_opt = function(){
+    this.win_size = 15;
+    this.max_iterations = 30;
+    this.epsilon = 0.01;
+    this.min_eigen = 0.001;
+    this.threshold = 30;
+}
+
+function demo_app(videoWidth, videoHeight) {
+
+    ctx = canvas.getContext('2d');
+     context = canvas2.getContext('2d');
+
+    debugImage = context.createImageData(width, height);
+    warpImage = context.createImageData(224, 224);
+    homographyImageR = new CV.Image();
+    homographyImageB = new CV.Image();
+    homographyImageG = new CV.Image();
+    homographyImage = new CV.Image();
+
+    ctx.fillStyle = "rgb(0,255,0)";
+    ctx.strokeStyle = "rgb(0,255,0)";
+//ff
+    img_u8 = new jsfeat.matrix_t(width, height, jsfeat.U8_t | jsfeat.C1_t);
+
+    corners = [];
+    
+    for(let j =0; j<NoM; j++){
+        let i = width*height;
+        corners[j]=[];
+        before[j]=[];
+        after[j]=[];
+
+        while(--i >= 0) {
+          corners[j][i] = new jsfeat.keypoint_t(0,0,0,0);
+    }}
+
+    threshold = 30;
+
+    jsfeat.fast_corners.set_threshold(threshold);
+
+    curr_img_pyr = new jsfeat.pyramid_t(2);
+    prev_img_pyr  = new jsfeat.pyramid_t(2);
+    curr_img_pyr.allocate(width, height, jsfeat.U8_t|jsfeat.C1_t);
+    prev_img_pyr.allocate(width, height, jsfeat.U8_t|jsfeat.C1_t);
+
+
+
+for(let i=0; i<NoM; i++){      
+
+    point_count[i]  = 0;
+    point_status[i]  = new Uint8Array(NoC);
+    prev_xy[i]  = new Float32Array(NoC*2);
+    curr_xy[i]  = new Float32Array(NoC*2);
+   
+    model_xy[i] = new Float64Array(NoC*2);
+    image_xy[i] = new Float64Array(NoC*2);
+    Nimage_xy[i] = new Float64Array(NoC*2);
+    Nmodel_xy[i] = new Float64Array(NoC*2);
+    Nmodel2_xy[i] = new Float64Array(NoC*2);
+
+
+    homo3x3[i] = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+    fhomo3x3[i] = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+    jsfeat.matmath.identity_3x3(homo3x3[i], 1.0);
+    jsfeat.matmath.identity_3x3(fhomo3x3[i], 1.0);
+    R[i] = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+    t[i] = new jsfeat.matrix_t(1,3,jsfeat.F32C1_t);
+
+}
+
+U = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+V = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+W = new jsfeat.matrix_t(1,3,jsfeat.F32C1_t);
+intrinsic = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+intrinsicInverse = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+
+intrinsic2 = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+intrinsicInverse2 = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+
+
+
+    intrinsic.data[0]=320;
+    intrinsic.data[1]=0.0;
+    intrinsic.data[2]=320/2;
+    intrinsic.data[3]=0;
+    intrinsic.data[4]=240;
+    intrinsic.data[5]=240/2;
+    intrinsic.data[6]=0;
+    intrinsic.data[7]=0;
+    intrinsic.data[8]=1;
+
+    intrinsic2.data[0]=320;
+    intrinsic2.data[1]=0.0;
+    intrinsic2.data[2]=0;//320/2;
+    intrinsic2.data[3]=0;
+    intrinsic2.data[4]=240;
+    intrinsic2.data[5]=0;//240/2;
+    intrinsic2.data[6]=0;
+    intrinsic2.data[7]=0;
+    intrinsic2.data[8]=1;
+
+
+    jsfeat.matmath.invert_3x3(intrinsic,intrinsicInverse);
+    jsfeat.matmath.invert_3x3(intrinsic2,intrinsicInverse2);
+
+
+
+
+
+    options = new demo_opt();
+    // gui = new dat.GUI();
+
+    // gui.add(options, 'win_size', 7, 30).step(1);
+    // gui.add(options, 'max_iterations', 3, 30).step(1);
+    // gui.add(options, 'epsilon', 0.001, 0.1).step(0.0025);
+    // gui.add(options, 'min_eigen', 0.001, 0.01).step(0.0025);
+    // gui.add(options, 'threshold', 5, 100).step(1);
+
+
+    stat.add("grayscale");
+    stat.add("build image pyramid");
+    stat.add("optical flow lk");
+    stat.add("fast corners");
+
+if(threshold != options.threshold) {
+    threshold = options.threshold|0;
+    jsfeat.fast_corners.set_threshold(threshold);
+}
+// Extract the already learned features from MobileNet
+
+}
+
+
+
+      function createImage(src, dst){
+        let i = src.data.length, j = (i * 4) + 3;
+        
+        while(i --){
+          dst.data[j -= 4] = 255;
+          dst.data[j - 1] = dst.data[j - 2] = dst.data[j - 3] = src.data[i];
+        }
+        
+        return dst;
+      }
+      function createImageC(Rd, G, B, dst){
+        let i = Rd.data.length, j = (i * 4) + 3;
+        
+        while(i --){
+          dst.data[j -= 4] = 255;
+          dst.data[j - 1] = B.data[i];
+          dst.data[j - 2] = G.data[i];
+          dst.data[j - 3] = Rd.data[i];
+        }
+        
+        return dst;
+      };
+  
+  
+  
+  
+  
+  
+  
+  
+      function Scene3D(){
+  
+  
+                texture = new THREE.VideoTexture(video);
+                texture.minFilter = THREE.NearestFilter; 
+                texture.magFilter = THREE.NearestFilter; 
+                texture.generateMipmaps = false;
+                texture.type = THREE.UnsignedByteType;
+                texture.format =THREE.RGBAFormat;
+                
+                renderer = new THREE.WebGLRenderer();
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( width, height );
+                renderer.setClearColor(0xffffff);
+                //renderer.domElement.style.position="absolute"
+                renderer.autoClear = false; 
+                document.body.appendChild( renderer.domElement );
+               
+                //controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+                // init cam for model
+                perspCam = new THREE.PerspectiveCamera(45, width/height, 0.1, 10000);
+                perspCam.position.set(0, 0, 0);
+                
+                
+                // init cam for video stream
+                orthoCam = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, -10000, 10000);
+               // orthoCam.position.set(0, 0, 0);
+                
+                // init scenes
+                orthoScene = new THREE.Scene();
+                perspScene = new THREE.Scene();
+                // construct scenes
+                perspScene.add(perspCam);
+                orthoScene.add(orthoCam);
+                
+                var light = new THREE.AmbientLight( 0x303030 ); // soft white light
+                light.position.set(0.1, 0.3, -0.1);
+              perspScene.add( light );
+            
+                spotlight = new THREE.DirectionalLight(0xffffff, 0.2);
+              spotlight.position.set(1, 1, 1);
+              perspScene.add(spotlight);
+                
+                // light = new THREE.DirectionalLight(0xffffff, 1.5);
+                // light.position.set(0, 0.5, -0.5).normalize();
+                // light.lookAt(0,0,1);   
+                
+                
+                
+                // Three.js elements to make the video visable
+                var videoMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+               // overdraw: true
+                });
+                var videoGeometry = new THREE.PlaneBufferGeometry(1, 1);
+                var videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
+                videoMesh.position.set(0, 0, 0);
+                orthoScene.add(videoMesh);
+                
+
+
+                var teapotGeometry = new THREE.TeapotBufferGeometry( 1 );              
+                var material = new THREE.MeshPhongMaterial( {
+                color: 0xff00ff,
+                } );
+                meshes[0] = new THREE.Mesh(teapotGeometry, material);  
+                perspScene.add( meshes[0] );
+                meshes[0].visible=false;
+
+
+
+              //  group = new THREE.Group();
+              //  perspScene.add( group );
+
+          	  let		geometry3 = new THREE.BoxGeometry( 1, 1, 1);
+              let material3 = new THREE.MeshBasicMaterial( { color: 0xf0ff00 ,    opacity: 0.75,
+                transparent: true} );
+              meshes[1] = new THREE.Mesh( geometry3, material3 );
+              perspScene.add( meshes[1] );
+              // console.log( "SCene Created ");
+
+
+        //       				// BEGIN Clara.io JSON loader code
+				// var objectLoader = new THREE.ObjectLoader();
+				// objectLoader.load( "js/geometries/sonicdep.json", function ( obj ) {
+
+        //   perspScene.add( obj );
+        //   obj.position.z=-5;
+
+				// } );
+        // // END Clara.io JSON loader code
+
+  
+    }
+  //end scene
+  
+  
+  
+  function render_corners(corners, count, img, step) {
+                  let pix = (0xff << 24) | (0x00 << 16) | (0xff << 8) | 0x00;
+                  for(let i=0; i < count; ++i)
+                  {
+                      let x = corners[i].x;
+                      let y = corners[i].y;
+                      let off = (x + y * step);
+                      img[off] = pix;
+                      img[off-1] = pix;
+                      img[off+1] = pix;
+                      img[off-step] = pix;
+                      img[off+step] = pix;
+                  }
+              }
+  
+              function draw_circle(ctx, x, y) {
+                  ctx.beginPath();
+                  ctx.arc(x, y, 4, 0, Math.PI*2, true); 
+                  ctx.closePath();
+                  ctx.fill();
+              }
+  
+
+
+              function prune_oflow_pointsA(ctx, m) {
+  
+                  let n = point_count[m];
+                  let j=0;
+
+                  for(let i=0; i < n; ++i) {
+                      if(point_status[m][i] == 1) {
+                        
+                        curr_xy[m][j<<1] =  curr_xy[m][i<<1];
+                        curr_xy[m][(j<<1)+1]  = curr_xy[m][(i<<1)+1];
+
+                        model_xy[m][j<<1] =  model_xy[m][i<<1];
+                        model_xy[m][(j<<1)+1]  = model_xy[m][(i<<1)+1];
+
+                        Nmodel_xy[m][j<<1] =  Nmodel_xy[m][i<<1];
+                        Nmodel_xy[m][(j<<1)+1]  = Nmodel_xy[m][(i<<1)+1];                        
+
+                        ++j;
+                      }
+                  }
+
+                  return j;
+              }
+
+       
+
+    function drawCircles2(ctx, m, cnt){
+
+      for(let j=0; j<cnt; j++ ){
+
+          ctx.beginPath();
+          ctx.fillStyle = "rgb(0,255,0)";
+          draw_circle(ctx, curr_xy[m][j<<1],  curr_xy[m][(j<<1)+1]);
+
+          ctx.beginPath();
+          ctx.fillStyle = "rgb(255,0,0)";
+          draw_circle(ctx, model_xy[m][j<<1], model_xy[m][(j<<1)+1] );
+
+      }
+    } 
+    
+    
+
+      </script>
+
+
+
+
+
+    <!-- Load the latest version of TensorFlow.js -->
+        <script src="https://unpkg.com/@tensorflow/tfjs"></script>
+        <script src="https://unpkg.com/@tensorflow-models/mobilenet"></script>
+        <script src="https://unpkg.com/@tensorflow-models/knn-classifier"></script>
+        
+        <script src="callcallback.js"></script>
+        <script src="io.js"></script>
+        <script src="KnnClass.js"></script>
+
+
+       <!-- <script  src="poserppx.js"></script>      -->
+       <script  src="poserppx.js"></script>  
+  
+       
+        <script type="text/javascript" src="js/three.min.js"></script>
+        <script src='js/geometries/TeapotBufferGeometry.js'></script>
+        
+        <!-- <script type="text/javascript" src="js/DDSLoader.js"></script>
+        <script type="text/javascript" src="js/MTLLoader.js"></script>
+        <script type="text/javascript" src="js/OBJLoader.js"></script> -->
+        
+        <!-- <script src="js/OrbitControls.js"></script> -->
+
+
+        <script type="text/javascript">
+        "use strict";
+
+            // lets do some fun
+            var video = document.getElementById('webcam');
+            var videoStatus = document.getElementById('videoStatus');
+            var canvas = document.getElementById('canvas');
+            var canvasC = document.getElementById('canvasC');
+            var canvasM = document.getElementById('canvasM');
+            var canvas2 = document.getElementById('canvas2');
+
+            canvaz = document.getElementById("canvaz");
+            ctz = canvaz.getContext('2d');
+           // img = document.getElementById("im");   
+
+// Grab all the DOM elements
+//var video = document.getElementById('video');
+  var loading = document.getElementById('loading');
+ var result1 = document.getElementById('result1');
+ var result2 = document.getElementById('result2');
+ //var classifier;
+
+// A variable to store the total loss
+      let totalLoss = 0;
+      let NoC =4;
+            var gui,options,ctx,canvasWidth,canvasHeight, context, contextC, contextM;
+            var curr_img_pyr, prev_img_pyr, point_count=[], point_status=[], prev_xy=[], curr_xy=[],  model_xy=[], image_xy=[];
+            let Nimage_xy=[], first_xy=[], image_xy1=[];
+            let  Nmodel_xy=[], Nmodel2_xy=[];
+            
+            var img_u8, corners, threshold;
+
+            var i_u8=[];
+
+            //var modelSize = 30.0; //millimeters
+            var markers, detector;
+            var    after = [];
+            var    before = [];
+            let homo3x3 =[];
+            let fhomo3x3=[];
+            //let fhomo3x3 =new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+            var intrinsic, intrinsicInverse, R=[], U, V, W, t=[];
+            let markerWorker;
+
+            
+            let Rot = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+            let  tx = new jsfeat.matrix_t(1,3,jsfeat.F32C1_t);
+
+
+
+
+            let   hint = {
+                  audio: false,
+                  video: {
+                      facingMode: 'environment',
+                      width: { min: width, max: width }
+                  },
+              };
+
+// Create a webcam capture
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices.getUserMedia(hint).then(function(stream) { 
+    video.srcObject = stream;
+    video.play();
+    demo_app(width, height);
+  });
+}
+            var stat = new profiler();
+
+
+            let GetPose = Module.cwrap("PoseRpp", null, ["number", "number", "number", "number"]);
+            let len, bytes_per_element, input1_ptr, input2_ptr, output_ptr, output_array;
+
+
+
+//*****************************
+            let net;
+            const webcamElement = document.getElementById('webcam');
+            app();
+            const classifier = knnClassifier.create();
+            const KNNClass = new KNN();
+            KNNClass.load('./myKNNDataset.json', updateCounts);
+
+//*****************************
+
+            var output_pose;
+            var poseWorker;
+            var wasmModule;
+        //let prev_pose, curr_pose;
+               
+                
+      let sendToWorker = true;
+
+      let keyframe =true;
+      let frms=0, rate=5;
+
+      let yaw0=[], pitch0=[], roll0=[];
+        let px0=[],py0=[],pz0=[];
+
+      let Ximage_xy, Xmodel_xy;
+      let Ximage_xy1=[], Xmodel_xy1=[];
+
+      //let once =true;
+      let gframe=0;
+      let ul=[], ur=[],ll=[],lr=[];
+
+      let model_xy1 = [-160, 120, 160, 120, 160, -120, -160, -120]; 
+      //let model_xy1 = [-320, 240, 320, 240, 320, -240, -320, -240]; 
+      Xmodel_xy1 = new Float64Array(model_xy1);
+  
+      let match_mask = new jsfeat.matrix_t(500,1,jsfeat.U8C1_t);
+
+      let counter =0;
+      let order =[];
+
+      let NoTrgts =0;
+      let tCount=0;
+      let xNo=0;
+      let No = 0;
+      let start =true;
+      let resetTime =0;
+      let resetTime2 =0;
+      let okay =true;
+
+
+
+
+  async function app() {
+
+    console.log('Loading mobilenet..');
+    net = await mobilenet.load();
+    console.log('Sucessfully loaded model');
+    
+      loading.innerText = 'Model  loaded !';
+      pixels = [];
+      detector = new AR.Detector();              
+
+
+          markerWorker = new Worker("workerMarker.js");
+          markerWorker.onmessage = function(e) {
+            console.log("worker marker received");
+              if(e.data){
+                sendToWorker =false;
+                markerWorker.terminate();
+            }
+          }
+
+          Scene3D();
+          tick();
+
+  }
+
+
+  function updateCounts() {
+
+      console.log("custom Model loaded"); 
+      const counts = KNNClass.getCountByLabel();
+  }
+
+
+
+            // RANSAC & H
+
+    function RANSAC(m, count) {
+
+              console.log( " RANSAC");
+                // motion kernel
+                var mm_kernel = new jsfeat.motion_model.homography2d();
+                // ransac params
+                var num_model_points = 4;
+                var reproj_threshold = 3;
+                var ransac_param = new jsfeat.ransac_params_t(num_model_points, 
+                                                              reproj_threshold, 0.5, 0.99);
+
+                var from_xy = [];
+                var to_xy = [];
+
+                // construct correspondences
+                for(var i = 0; i < count; ++i) {
+
+                   
+                    let f_kpx = prev_xy[m][i<<1];
+                    let f_kpy = prev_xy[m][(i<<1)+1];
+
+                    let t_kpx = curr_xy[m][i<<1];
+                    let t_kpy = curr_xy[m][(i<<1)+1];
+
+                    from_xy[i] = {"x":f_kpx, "y":f_kpy};
+                    to_xy[i] =  {"x":t_kpx, "y":t_kpy};
+
+
+                }
+
+                // estimate motion
+                let match_mask = new jsfeat.matrix_t(NoC,1,jsfeat.U8C1_t);
+                var ok = false;
+                ok = jsfeat.motion_estimator.ransac(ransac_param, mm_kernel, 
+                                                    from_xy, to_xy, count, homo3x3[m], match_mask, 999);
+
+                 let good_cnt = 0;
+
+                if(ok) {
+                    for(let i=0; i < count; ++i) {
+                        if(match_mask.data[i]) {
+
+                            curr_xy[m][good_cnt<<1] = curr_xy[m][i<<1];
+                            curr_xy[m][(good_cnt<<1)+1] = curr_xy[m][(i<<1)+1]; 
+
+                  model_xy[m][good_cnt<<1] =  model_xy[m][i<<1];
+                  model_xy[m][(good_cnt<<1)+1]  = model_xy[m][(i<<1)+1];
+
+                  Nmodel_xy[m][good_cnt<<1] =  Nmodel_xy[m][i<<1];
+                  Nmodel_xy[m][(good_cnt<<1)+1]  = Nmodel_xy[m][(i<<1)+1];
+                                         
+                            good_cnt++;
+                        }
+                    }
+                    // run kernel directly with inliers only
+                    mm_kernel.run(from_xy, to_xy, homo3x3[m], good_cnt);
+
+            }                
+            else {
+                    jsfeat.matmath.identity_3x3(homo3x3[m], 1.0);
+            }
+              //console.log("No of Corners"+"   "+good_cnt);
+
+              return good_cnt;
+    }
+
+
+
+
+
+
+  function SetPose(ya, pit, rol, pox, poy, poz, idx, m){
+
+    console.log( " SetPose");
+          B = poz+pz0[m] ;
+          A = poz ;
+
+          
+          var d = document.getElementById("logpos");
+          d.innerHTML =" x: " +  ( pox*B/A+px0[m]).toPrecision(2)
+                      + " y: " + (poy*B/A+py0[m]).toPrecision(2)
+                      + " z: " + (poz+ pz0[m]).toPrecision(2)
+                  + "<br/>"
+                  + " ay: " + Math.round(ya * 180.0/Math.PI+yaw0[m])
+                  + " ax: " + Math.round(pit * 180.0/Math.PI+pitch0[m])
+                  + " az: " + Math.round(rol * 180.0/Math.PI+roll0[m]);
+                  
+                  
+          //first pose + RPP pose
+        if(label[0] ){
+          console.log( "  zero "); 
+        meshes[0].visible =true; 
+        }
+
+        if(label[1] ){
+          console.log( "  one "); 
+          meshes[1].visible =true;
+        }
+
+
+        let odx =order[m];
+        console.log( "  m ", m);
+        console.log( "  odx ", odx);
+
+
+
+  
+    if(odx>-1){
+        meshes[odx].position.x =  pox*B/A +px0[m];
+        meshes[odx].position.y =  poy*B/A+py0[m];
+        meshes[odx].position.z =  -poz -pz0[m];
+          
+        meshes[odx].rotation.x = -pit +pitch0[m];
+        meshes[odx].rotation.y = -ya +yaw0[m];
+        meshes[odx].rotation.z =  rol+roll0[m];
+    }
+
+  }
+
+
+
+
+
+function UpdatePose(idx, m){
+
+
+  console.log( " UpdatePose");
+
+
+    let a = Math.atan2(-output_pose[6], output_pose[8]);
+    let b = Math.asin(output_pose[7]);
+    let c = Math.atan2(-output_pose[1], output_pose[4]);
+
+    let d=output_pose[9];
+    let e=output_pose[10];
+    let f=output_pose[11];
+
+    SetPose(a, b, c, d, e, f, idx, m);
+
+}
+
+
+
+
+
+function get4C(markers, i, dx, dy){
+  console.log( " get4C");
+let marker, corner;
+let ax =new Float32Array(4);
+let ay =new Float32Array(4);
+let ays=new Float32Array(4);
+let axs=new Float32Array(4);
+
+
+      marker = markers[i].corners;
+
+      for (let j = 0; j <4 ; ++ j){
+        corner = marker[j];
+        ax[j]=axs[j] = corner.x;
+        ay[j]=ays[j] = corner.y; 
+
+      }
+
+      ax.sort();
+      ay.sort();
+
+//upper corners
+
+      let i1 = ays.indexOf(ay[0]);
+      let i2 = ays.indexOf(ay[1]);
+      let x1 = axs[i1];
+      let x2 = axs[i2];
+
+      // 
+      if(x1<x2){
+        ul[0]=x1;
+        ul[1]=ays[i1];
+
+        ur[0]=x2;
+        ur[1]=ays[i2]
+        
+      }else{
+        ul[0]=x2
+        ul[1]=ays[i2]
+
+        ur[0]=x1
+        ur[1]=ays[i1]
+      }
+
+      //lower corners
+
+      i1 = ays.indexOf(ay[2]);
+      i2 = ays.indexOf(ay[3]);
+      x1 = axs[i1];
+      x2 = axs[i2];
+
+      if(x1<x2){
+        ll[0]=x1
+        ll[1]=ays[i1]
+
+        lr[0]=x2
+        lr[1]=ays[i2]
+        
+      }else{
+        ll[0]=x2
+        ll[1]=ays[i2]
+
+        lr[0]=x1
+        lr[1]=ays[i1]
+      }
+
+
+
+      image_xy1=[ul[0]- (width / 2),(height / 2) - ul[1],
+                 ur[0]- (width / 2) ,(height / 2)- ur[1], 
+                 lr[0]- (width / 2), (height / 2)- lr[1],
+                 ll[0]- (width / 2), (height / 2)-ll[1]];
+
+
+      Ximage_xy1[i]= new Float64Array(image_xy1);
+    ComputeFirstH(i); 
+    getCorners2(i, dx, dy); 
+}
+
+function ComputeFirstH(m) {
+  console.log( " First H");
+  // motion kernel
+  let mm_kernel = new jsfeat.motion_model.homography2d();
+  
+  // construct correspondences
+  let j=0;
+  for(let i=0;i< 4;i++){
+  
+              before[j] = {"x":Xmodel_xy1[i<<1], "y":Xmodel_xy1[(i<<1)+1]};
+
+              after[j] =  {"x":Ximage_xy1[m][i<<1], "y":Ximage_xy1[m][(i<<1)+1]};
+
+              j++;
+  }  
+      mm_kernel.run(before, after, fhomo3x3[m], 4);
+
+      ComputeFirstPose(fhomo3x3[m], m);
+ 
+}
+
+
+
+
+
+function ComputeFirstPose(homography, m){
+
+  console.log( "Compute FirstPose");
+
+let h10 = homography.data[0];
+let h11 = homography.data[3];
+let h12 = homography.data[6];
+let h20 = homography.data[1];
+let h21 = homography.data[4];
+let h22 = homography.data[7];
+let h30 = homography.data[2];
+let h31 = homography.data[5];
+let h32 = homography.data[8];
+
+let r10, r11, r12;
+let r20, r21, r22;
+let r30, r31, r32;
+//var vT= new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
+
+//
+let invC0 = intrinsicInverse2.data[0];
+let invC1 = intrinsicInverse2.data[1];
+let invC2 = intrinsicInverse2.data[2];
+let invC3 = intrinsicInverse2.data[3];
+let invC4 = intrinsicInverse2.data[4];
+let invC5 = intrinsicInverse2.data[5];
+let invC6 = intrinsicInverse2.data[6];
+let invC7 = intrinsicInverse2.data[7];
+let invC8 = intrinsicInverse2.data[8];
+//
+let invH10 = invC0*h10 + invC1*h11 + invC2*h12;
+let invH11 = invC3*h10 + invC4*h11 + invC5*h12;
+let invH12 = invC6*h10 + invC7*h11 + invC8*h12;
+
+let lambda = Math.sqrt( invH10 * invH10 + invH11 * invH11 + invH12 * invH12 );
+
+//console.log("lda  :", lambda);  
+
+if (lambda == 0) return false;
+
+lambda = 1.0 / lambda;
+invC0 *= lambda;
+invC1 *= lambda;
+invC2 *= lambda;
+invC3 *= lambda;
+invC4 *= lambda;
+invC5 *= lambda;
+invC6 *= lambda;
+invC7 *= lambda;
+invC8 *= lambda;
+
+// Create normalized R1 & R2:
+r10 = invC0*h10 + invC1*h11 + invC2*h12;
+r11 = invC3*h10 + invC4*h11 + invC5*h12;
+r12 = invC6*h10 + invC7*h11 + invC8*h12;
+//
+r20 = invC0*h20 + invC1*h21 + invC2*h22;
+r21 = invC3*h20 + invC4*h21 + invC5*h22;
+r22 = invC6*h20 + invC7*h21 + invC8*h22;
+
+// Get R3 orthonormal to R1 and R2:
+r30 = r11 * r22 - r12 * r21;
+r31 = r12 * r20 - r10 * r22;
+r32 = r10 * r21 - r11 * r20;
+
+// Put the rotation column vectors in the rotation matrix:
+
+
+Rot.data[0] = r10;
+Rot.data[1] = r20;
+Rot.data[2] = r30;
+Rot.data[3] = r11;
+Rot.data[4] = r21;
+Rot.data[5] = r31;
+Rot.data[6] = r12;
+Rot.data[7] = r22;
+Rot.data[8] = r32;
+
+// Calculate Translation Vector T:
+tx.data[0] = (invC0*h30 + invC1*h31 + invC2*h32);
+tx.data[1] = (invC3*h30 + invC4*h31 + invC5*h32);
+tx.data[2] = (invC6*h30 + invC7*h31 + invC8*h32);//?
+
+
+// U       - the left orthogonal matrix
+// W       - vector of singular values
+// V       - the right orthogonal matrix
+// options - jsfeat.SVD_U_T and/or jsfeat.SVD_V_T to return transposed U and/or V
+
+jsfeat.linalg.svd_decompose(Rot, W, U, V, jsfeat.SVD_V_T);
+
+jsfeat.matmath.multiply_3x3(Rot, U, V);
+
+PrintFirstPose(m);
+
+}
+
+
+
+function PrintFirstPose(m){
+
+
+    console.log( " FirstPose");
+      yaw0[m] = -Math.atan2(Rot.data[2], Rot.data[8]);
+      pitch0[m] = -Math.asin(-Rot.data[5]);
+      roll0[m] = Math.atan2(Rot.data[3], Rot.data[4]);
+
+
+      px0[m] = tx.data[0]/320;
+      py0[m] = tx.data[1]/240;
+      pz0[m] = tx.data[2]/320;
+
+}
+
+function distance(x1,y1,x2,y2){
+    return (Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)));
+}
+//detect corners of the grey rect area of the marker
+function getCorners2(k, dx, dy) {
+
+  console.log( " getCorners 2");
+    
+
+    count[k] = jsfeat.fast_corners.detect(i_u8[k], corners[k], 5);
+
+    point_count[k]=0;
+    let d1,d2,d3,d4;
+    let md1,md2,md3,md4;
+        md1=md2=md3=md4=999;
+    let mind;
+
+    let mdx=[];
+
+    for( let i=0; i<corners[k].length;i++){
+
+        let    element = corners[k][i];
+
+        d1=distance(0,0,element.x, element.y);
+        d2=distance(dx,0,element.x, element.y);
+        d3=distance(dx,dy,element.x, element.y);
+        d4=distance(0,dy,element.x, element.y);
+
+        mind =Math.min(d1, d2, d3, d4);
+
+        if(mind==d1){
+
+            if(mind<md1){
+                mdx[0]=i;
+                md1=mind;
+            }
+
+        }
+        else if(mind==d2){
+            if(mind<md2){
+                mdx[1]=i;
+                md2=mind;
+            }
+        }
+        else if(mind==d3){
+            if(mind<md3){
+                mdx[2]=i;
+                md3=mind;
+            }
+        }
+        else{
+            if(mind<md4){
+                mdx[3]=i;
+                md4=mind;
+            }
+        }
+
+    }
+
+
+
+    if(count[k]>NoC){
+
+          for(let i=0; i < NoC; ++i){
+ 
+          let j=mdx[i%4] + Math.floor(i/4) ;
+
+            model_xy[k][i<<1] = corners[k][j].x + ULx[k];
+            model_xy[k][(i<<1)+1] = corners[k][j].y + ULy[k];
+
+            let px = model_xy[k][i<<1] ;
+            let py =height - model_xy[k][(i<<1)+1] ;                    
+
+            Nmodel_xy[k][i<<1] = intrinsicInverse.data[0]*px + intrinsicInverse.data[1]*py + intrinsicInverse.data[2];
+            Nmodel_xy[k][(i<<1)+1] = intrinsicInverse.data[3]*px + intrinsicInverse.data[4]*py + intrinsicInverse.data[5]; 
+            
+            curr_xy[k][i<<1] =  corners[k][j].x + ULx[k];
+            curr_xy[k][(i<<1)+1] = corners[k][j].y + ULy[k];
+
+
+            point_count[k]++;
+            //j+= Math.floor(count[k]/(NoC-1)); 
+          }
+
+        }  
+  }
+
+
+    //Extract Un-Warpped Rect area of the marker (greyscale for Lukas Kanade)
+    function extractMarkers(markers, i){
+      console.log( " extractmarkers ");
+        let marker, corner;
+        let ax =new Float32Array(4);
+        let ay =new Float32Array(4);
+
+              marker = markers[i].corners;
+
+              for (let j = 0; j <4 ; ++ j){
+                corner = marker[j];
+                ax[j] = corner.x;
+                ay[j] = corner.y;
+              }
+
+              ax.sort();
+              ay.sort();
+
+              ULx[i] = ax[1]+20;
+              ULy[i] = ay[1]+20;
+              //console.log(ULx[i]+"  "+ULy[i]);
+
+              let dx=(ax[2]-ax[1])-40;
+              let dy =(ay[2]-ay[1])-40;
+
+              widthm[i] = dx;
+              heightm[i] = dy;
+
+              aImageData[i]=ctx.getImageData(ax[1], ay[1], dx, dy);
+
+              i_u8[i] =  new jsfeat.matrix_t(dx, dy, jsfeat.U8_t | jsfeat.C1_t);
+              jsfeat.imgproc.grayscale(aImageData[i].data, dx, dy, i_u8[i]);
+       
+            get4C(markers, i, dx, dy);
+            //getCorners(i);
+            //setTimeout(getCorners2, 30, i);
+
+  } 
+
+//detect corners of the grey rect area of the marker
+function getCorners(k) {
+  console.log( " getCorners ");
+    
+
+    count[k] = jsfeat.fast_corners.detect(i_u8[k], corners[k], 5);
+
+    point_count[k]=0;
+
+    if(count[k]>NoC){
+          let j=0;
+          for(let i=0; i < NoC; ++i){
+                    //model corners in  frame-space  
+            //xyxyxyxyxyxyxyxyxyxyxyxyxyyxyxyyxyxyxyxyxy   
+
+
+            model_xy[k][i<<1] = corners[k][j].x + ULx[k];
+            model_xy[k][(i<<1)+1] = corners[k][j].y + ULy[k];
+
+            let px = model_xy[k][i<<1] ;
+            let py =height - model_xy[k][(i<<1)+1] ;                    
+
+            Nmodel_xy[k][i<<1] = intrinsicInverse.data[0]*px + intrinsicInverse.data[1]*py + intrinsicInverse.data[2];
+            Nmodel_xy[k][(i<<1)+1] = intrinsicInverse.data[3]*px + intrinsicInverse.data[4]*py + intrinsicInverse.data[5]; 
+            
+            curr_xy[k][i<<1] =  corners[k][j].x + ULx[k];
+            curr_xy[k][(i<<1)+1] = corners[k][j].y + ULy[k];
+
+
+            point_count[k]++;
+            j+= Math.floor(count[k]/(NoC-1)); 
+          }
+
+        }
+   
+  }
+
+          
+    // function drawDebug(){
+         
+    //   context.clearRect(0, 0, canvas2.width, canvas2.height);
+    //   contextC.clearRect(0, 0, canvasC.width, canvasC.height);
+
+    //   //context.putImageData(imageData, 0, 0);
+    //   context.putImageData( createImage(detector.grey, debugImage), width, 0);
+    //   context.putImageData( createImage(detector.thres, debugImage), width * 2, 0);
+      
+    //   drawContours(detector.contours, 0, height, width, height, function(hole) {return hole? "magenta": "blue";});
+    //   drawContours(detector.polys, width, height, width, height, function() {return "green";} );
+    //   drawContours(detector.candidates, width * 2, height, width, height, function() {return "red";} );
+      
+
+    // }
+
+
+    
+    // function drawContours(contours, x, y, width, height, fn){
+    //   let i = contours.length, j, contour, point;
+      
+    //   while(i --){
+    //     contour = contours[i];
+
+    //     context.strokeStyle = fn(contour.hole);
+    //     context.beginPath();
+
+    //     for (j = 0; j < contour.length; ++ j){
+    //       point = contour[j];
+    //       context.moveTo(x + point.x, y + point.y);
+    //       point = contour[(j + 1) % contour.length];
+    //       context.lineTo(x + point.x, y + point.y);
+    //     }
+        
+    //     context.stroke();
+    //     context.closePath();
+    //   }
+    // }
+    
+
+
+
+
+
+
+
+
+
+function Initialize(input1_array){
+
+//console.log(Module);
+          len = input1_array.length;			       
+          bytes_per_element = input1_array.BYTES_PER_ELEMENT;   
+           
+// alloc memory, in this case 5*4 bytes
+           input1_ptr = Module._malloc(len * bytes_per_element);
+           input2_ptr = Module._malloc(len * bytes_per_element);
+
+           output_ptr = Module._malloc(12 * bytes_per_element);
+
+// write WASM memory calling the set method of the Int32Array, (see below for details)            
+          Module.HEAPF64.set(input1_array, input1_ptr / bytes_per_element); 
+          //console.log("The starting array 1 was:", input1_array);
+}
+
+function GetRPPPose(input2_array){
+
+           Module.HEAPF64.set(input2_array, input2_ptr / bytes_per_element);
+
+
+
+// call the WASM function
+         GetPose(input1_ptr, input2_ptr, output_ptr, Math.floor(len/2)); 
+
+
+// extract data to another JS array
+        output_array = new Float64Array(Module.HEAPF64.buffer, output_ptr, 12); 
+
+         // console.log("The starting array 2 was:", input2_array);
+        //  console.log("The result read is:	", output_array);
+          
+// dealloc memory
+          Module._free(input1_ptr);
+          Module._free(input2_ptr);
+          Module._free(output_ptr);
+
+          return output_array;
+
+}
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////?
+function tick() {
+        //requestAnimationFrame(tick);
+       
+        stat.new_frame();
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            ctx.drawImage(video, 0, 0, width, height);
+            imageData = ctx.getImageData(0, 0, width, height);
+
+            //console.log("d  "+ detect+"   t  "+track);
+            
+        if(detect){
+console.log("Detecting   ");
+
+            if(sendToWorker){
+ 
+requestAnimationFrame(tick);
+
+                if(kf){    
+                                          
+                        markerWorker.postMessage(imageData, [imageData.data.buffer]); 
+                }
+                frms++;
+                if(frms===rate){frms=0;kf=true;}else{kf=false;}
+            }
+            
+            
+            
+            else{
+                markers = detector.detect(imageData);
+                //NoM = markers.length;
+                NoTrgts = markers.length;
+                //drawDebug();
+
+                if(markers.length > 0){
+                  console.log("Detecting  in main ");
+                    drawWarpsC(detector.red,detector.green, detector.blue, detector.candidates);                
+                }
+                else{
+requestAnimationFrame(tick);                   
+                }
+          }
+        }
+
+
+
+        if(track){
+              
+            console.log("tracking");
+            let _pyr = prev_img_pyr;
+            prev_img_pyr = curr_img_pyr;
+            curr_img_pyr = _pyr;
+
+                              
+            jsfeat.imgproc.grayscale(imageData.data, width, height, curr_img_pyr.data[0]);          
+            img_u8 = curr_img_pyr.data[0];          
+            curr_img_pyr.build(curr_img_pyr.data[0], true);
+
+
+
+           //track each marker conrners based on the entire  image        
+          for(let i=0; i<NoClass; i++){  //??????????????????????????????????????????????????? 
+            // swap flow data
+            let _pt_xy = prev_xy[i];
+            prev_xy[i] = curr_xy[i];
+            curr_xy[i] = _pt_xy;
+
+
+            jsfeat.optical_flow_lk.track(prev_img_pyr, curr_img_pyr, prev_xy[i], curr_xy[i], point_count[i], options.win_size|0, 
+                                            options.max_iterations|0, point_status[i], options.epsilon, options.min_eigen);
+
+
+             point_count[i]=prune_oflow_pointsA(ctx, i);
+
+
+            drawCircles2(ctx, i, point_count[i]);          
+
+ if(keyframe){
+
+            console.log("point count   " + point_count[i]);
+            if(point_count[i]<4){ 
+
+              track=false;
+              detect=true;
+              //sendToWorker=true;
+              point_count[i]=0;
+              result1.innerText = "   ";
+              result2.innerText = "   ";
+             label[1]=label[0]=false;
+             // NoClass=0;
+             start = false;
+             meshes[0].visible =false;
+             meshes[1].visible =false;
+
+//requestAnimationFrame(tick);
+//break;
+            }else{
+
+      //************     RANSAC     **********************
+      
+      
+                  point_count[i]= RANSAC(i, point_count[i]);
+
+                  if(point_count[i] >3){
+
+
+                  //normalize
+                  for (let n=0; n<point_count[i]; n++){
+
+//xxxxxxxxxxxxxxxxxxxxxxxxxx:yyyyyyyyyyyyyyyyyyyyyyyyyyy
+
+//K^-1X
+                    let px = curr_xy[i][n<<1] ;
+                    let py =height - curr_xy[i][(n<<1)+1] ;
+
+                    Nimage_xy[i][n] = intrinsicInverse.data[0]*px + intrinsicInverse.data[1]*py + intrinsicInverse.data[2];
+                    Nimage_xy[i][n+ point_count[i]] = intrinsicInverse.data[3]*px + intrinsicInverse.data[4]*py + intrinsicInverse.data[5];  
+
+
+
+                    px = Nmodel_xy[i][n<<1] ;
+                    py = Nmodel_xy[i][(n<<1)+1] ;                    
+
+                    Nmodel2_xy[i][n] = px;
+                    Nmodel2_xy[i][n+ point_count[i]] = py;
+
+                  }
+
+                  // for RPP
+                  Xmodel_xy = Nmodel2_xy[i].slice(0, point_count[i]*2);            
+                  Ximage_xy = Nimage_xy[i].slice(0, point_count[i]*2);
+                  
+                  //drawCircles2(ctx, i, point_count[i]);
+                  console.log("computing Pose   ");
+                  //RPP is computed only at keyframe!!!
+  //poseWorker.postMessage({"modeldata": Xmodel_xy, "imagedata": Ximage_xy, "index" : order[i], "ai":i}, [Xmodel_xy.buffer, Ximage_xy.buffer]);
+                    Initialize(Xmodel_xy);                  
+                    output_pose =  GetRPPPose(Ximage_xy); 
+                    UpdatePose(order[i], i);
+             }//4
+          
+            }//4
+            
+          //console.log();
+          }//keyframe
+   
+               
+        }//No classes
+        frms++;
+                if(frms===rate){frms=0;keyframe=true;}else{keyframe=false;}
+requestAnimationFrame(tick);                
+                //console.log("frms "+frms);             
+
+      }//  track
+
+      texture.needsUpdate =true;
+      renderer.clear();      
+      renderer.render(orthoScene, orthoCam);
+      renderer.clearDepth();
+      renderer.render(perspScene, perspCam);
+      
+
+      document.getElementById('log').innerHTML= stat.log();   
+      
+    }//video
+    else{requestAnimationFrame(tick);}
+    gframe++;
+    if(gframe>1000 && track==true){
+      console.log("reset!  ");
+
+        detect=true;
+        track=false;///?
+        gframe=0;
+        //sendToWorker=true;
+        meshes[0].visible =false;
+        meshes[1].visible =false;
+    }
+    
+}//tick
+
+
+
+
+
+
+//Warp RGB markers & Classify
+async  function drawWarpsC(red, green, blue, contours){
+      console.log("  drawWarpsC   ");
+      NoClass=0; 
+      tCount=0; 
+      //label[0]=label[1]=false;
+      counter =-1;
+      order[0]=order[1]=-1;
+      console.log("counter   "+counter);
+      let contour;    
+
+      for(let i=0; i<contours.length; i++){
+        contour = contours[i];
+               
+        CV.warp(red, homographyImageR, contour, warpImage.width);
+        CV.warp(green, homographyImageG, contour, warpImage.width);
+        CV.warp(blue, homographyImageB, contour, warpImage.width);
+
+        aImageData[i] = createImageC(homographyImageR,homographyImageG,homographyImageB, warpImage);
+        //contextC.putImageData(aImageData[i] , offset + i * (warpImage.width + 10), y);
+        
+
+        if (KNNClass.getNumLabels() > 0){
+
+            const features = net.infer(aImageData[i], 'conv_preds');
+
+            const res = await KNNClass.classify(features);
+            gotResultz(i, res);
+
+        }
+
+      }  
+
+    } 
+
+
+// Show the resultz
+function gotResultz(err, data) {
+  console.log( "  gotResultz ");
+  //if (err) {
+    console.log("err  ", err);
+  //}
+  tCount++;
+  
+  // meshes[0].visible =false;
+  // meshes[1].visible =false;
+ 
+  if(data.label =="0"){
+    counter++;    
+    label[0]=true;
+    result1.innerText = data.label;
+    order[counter]=data.label;
+
+    meshes[0].visible =true;
+    
+   
+  } 
+  if(data.label =="1"){
+    counter++;    
+    label[1]=true;
+    result2.innerText = data.label;
+    order[counter]=data.label;
+
+    meshes[1].visible =true;
+  }
+  //console.log("label1   "+label[0]);
+  //console.log("label2   "+label[1]); 
+  if(label[0] || label[1]) NoClass=1;
+  if(label[0] && label[1] ) NoClass=2;
+
+  if(NoClass > 0 ){
+    extractMarkers(markers, counter);            
+  }
+
+  if(tCount==NoTrgts){
+    track=true;
+    detect=false;
+    gframe=0;
+    requestAnimationFrame(tick);
+
+  }
+
+  console.log("detect  "+ detect+"   track  "+track);
+
+}
+
+        </script>
+    </body>
+</html>
