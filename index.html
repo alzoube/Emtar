@@ -229,12 +229,6 @@ intrinsicInverse2 = new jsfeat.matrix_t(3,3,jsfeat.F32C1_t);
     // gui.add(options, 'min_eigen', 0.001, 0.01).step(0.0025);
     // gui.add(options, 'threshold', 5, 100).step(1);
 
-
-    stat.add("grayscale");
-    stat.add("build image pyramid");
-    stat.add("optical flow lk");
-    stat.add("fast corners");
-
 if(threshold != options.threshold) {
     threshold = options.threshold|0;
     jsfeat.fast_corners.set_threshold(threshold);
